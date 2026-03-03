@@ -27,7 +27,7 @@
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(380px, 1fr) minmax(320px, 440px);
+  grid-template-columns: minmax(440px, 1fr) minmax(320px, 440px);
   gap: 1rem;
   align-items: start;
 }
@@ -37,49 +37,102 @@
   border: 1px solid #cbd5e1;
   border-radius: 16px;
   padding: 1rem;
+  min-height: 460px;
   box-shadow: 0 8px 20px rgb(15 23 42 / 7%);
   animation: rise-in 420ms ease-out;
-}
-
-.cube-net {
   display: grid;
-  gap: 0.65rem;
-  justify-content: center;
-  grid-template-columns: repeat(4, minmax(82px, 120px));
+  gap: 0.9rem;
+  justify-items: center;
+  overflow: visible;
 }
 
-.cube-net > .empty-slot {
-  visibility: hidden;
+.cube-stage {
+  --cube-size: 208px;
+  --cube-half: 104px;
+  width: 100%;
+  min-height: 410px;
+  padding: 1.2rem 1rem;
+  display: grid;
+  place-items: center;
+  perspective: 1300px;
+  perspective-origin: 50% 46%;
+  transform-style: preserve-3d;
+  overflow: visible;
+  border-radius: 14px;
+  border: 1px solid #bfdbfe;
+  background:
+    radial-gradient(circle at 20% 12%, rgb(186 230 253 / 60%), transparent 45%),
+    radial-gradient(circle at 80% 85%, rgb(254 240 138 / 35%), transparent 55%),
+    linear-gradient(145deg, #eff6ff, #f0f9ff);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 70%),
+    0 12px 24px rgb(15 23 42 / 12%);
 }
 
-.face {
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  border-radius: 12px;
-  padding: 0.45rem;
-  min-width: 82px;
+.cube-3d {
+  position: relative;
+  width: var(--cube-size);
+  height: var(--cube-size);
+  transform-style: preserve-3d;
+  transform: translateY(4px) rotateX(-24deg) rotateY(-22deg) scale(0.9);
+  transform-origin: 50% 50%;
+  will-change: transform;
+  animation: cube-rise 420ms ease-out;
 }
 
-.face h2 {
-  margin: 0 0 0.25rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.045em;
-  color: #334155;
+.cube-face {
+  position: absolute;
+  inset: 0;
+  padding: 7px;
+  border-radius: 8px;
+  border: 0;
+  background: #0f172a;
+  box-shadow: inset 0 0 0 1px rgb(30 41 59 / 78%);
+  backface-visibility: hidden;
+  overflow: visible;
 }
 
-.face-grid {
+.face-front {
+  transform: translateZ(calc(var(--cube-half) + 1px));
+}
+
+.face-right {
+  transform: rotateY(90deg) translateZ(calc(var(--cube-half) + 0.5px));
+}
+
+.face-up {
+  transform: rotateX(90deg) translateZ(calc(var(--cube-half) + 0.5px));
+}
+
+.face-back {
+  transform: rotateY(180deg) translateZ(var(--cube-half));
+}
+
+.face-left {
+  transform: rotateY(-90deg) translateZ(var(--cube-half));
+}
+
+.face-down {
+  transform: rotateX(-90deg) translateZ(var(--cube-half));
+}
+
+.face-grid-3d {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.24rem;
+  width: 100%;
+  height: 100%;
+  gap: 6px;
 }
 
 .sticker {
   width: 100%;
   aspect-ratio: 1;
   display: block;
-  border-radius: 4px;
-  border: 1px solid rgb(15 23 42 / 15%);
+  border-radius: 5px;
+  border: 1px solid rgb(2 6 23 / 40%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 25%),
+    inset 0 -1px 1px rgb(2 6 23 / 18%);
 }
 
 .status {
@@ -201,6 +254,17 @@ kbd {
   }
 }
 
+@keyframes cube-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) rotateX(-18deg) rotateY(-16deg) scale(0.84);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(4px) rotateX(-24deg) rotateY(-22deg) scale(0.9);
+  }
+}
+
 @media (max-width: 980px) {
   .workspace {
     grid-template-columns: 1fr;
@@ -213,6 +277,12 @@ kbd {
   .controls-panel {
     order: 2;
   }
+
+  .cube-stage {
+    --cube-size: 196px;
+    --cube-half: 98px;
+    min-height: 360px;
+  }
 }
 
 @media (max-width: 620px) {
@@ -220,13 +290,11 @@ kbd {
     padding: 0.8rem;
   }
 
-  .cube-net {
-    grid-template-columns: repeat(4, minmax(62px, 1fr));
-    gap: 0.4rem;
-  }
-
-  .face {
-    padding: 0.34rem;
+  .cube-stage {
+    --cube-size: 176px;
+    --cube-half: 88px;
+    min-height: 305px;
+    padding: 0.95rem 0.8rem;
   }
 
   .layer-row {

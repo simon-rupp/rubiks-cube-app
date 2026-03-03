@@ -2,7 +2,7 @@
 
 A simple, intuitive Rubik's Cube web app focused on easy controls first:
 
-- Visual cube state (2D net)
+- Visual cube state (3D cube view)
 - `Scramble` and `Reset`
 - Turn whole cube: left, right, up, down
 - Move rows: left/right (top/middle/bottom)
@@ -57,6 +57,7 @@ Why this works:
 - Working button + keyboard controls
 - Scramble/reset
 - Responsive desktop/mobile layout
+- 3D cube render (all 6 faces)
 
 ### Phase 2 (Next)
 

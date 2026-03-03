@@ -29,15 +29,6 @@ type Shortcut =
 
 const FACE_ORDER: Face[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
-const FACE_LABELS: Record<Face, string> = {
-  U: 'Up',
-  R: 'Right',
-  F: 'Front',
-  D: 'Down',
-  L: 'Left',
-  B: 'Back',
-}
-
 const STICKER_COLORS: Record<string, string> = {
   U: '#f8fafc',
   R: '#ef4444',
@@ -184,19 +175,16 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [reset, runMove, scramble])
 
-  const renderFace = (face: Face) => (
-    <article className="face" aria-label={`${FACE_LABELS[face]} face`}>
-      <h2>{FACE_LABELS[face]}</h2>
-      <div className="face-grid">
-        {faces[face].flat().map((sticker, index) => (
-          <span
-            className="sticker"
-            key={`${face}-${index}`}
-            style={{ backgroundColor: STICKER_COLORS[sticker] ?? '#111827' }}
-          />
-        ))}
-      </div>
-    </article>
+  const renderFaceStickers = (face: Face) => (
+    <div className="face-grid-3d" aria-label={`${face} face`}>
+      {faces[face].flat().map((sticker, index) => (
+        <span
+          className="sticker"
+          key={`${face}-${index}`}
+          style={{ backgroundColor: STICKER_COLORS[sticker] ?? '#111827' }}
+        />
+      ))}
+    </div>
   )
 
   return (
@@ -208,19 +196,15 @@ function App() {
 
       <main className="workspace">
         <section className="cube-panel">
-          <div className="cube-net" role="img" aria-label="Rubik's Cube net">
-            <div className="empty-slot" />
-            <div>{renderFace('U')}</div>
-            <div className="empty-slot" />
-
-            <div>{renderFace('L')}</div>
-            <div>{renderFace('F')}</div>
-            <div>{renderFace('R')}</div>
-            <div>{renderFace('B')}</div>
-
-            <div className="empty-slot" />
-            <div>{renderFace('D')}</div>
-            <div className="empty-slot" />
+          <div className="cube-stage" role="img" aria-label="3D Rubik's Cube">
+            <div className="cube-3d">
+              <div className="cube-face face-front">{renderFaceStickers('F')}</div>
+              <div className="cube-face face-right">{renderFaceStickers('R')}</div>
+              <div className="cube-face face-up">{renderFaceStickers('U')}</div>
+              <div className="cube-face face-back">{renderFaceStickers('B')}</div>
+              <div className="cube-face face-left">{renderFaceStickers('L')}</div>
+              <div className="cube-face face-down">{renderFaceStickers('D')}</div>
+            </div>
           </div>
 
           <p className="status">
