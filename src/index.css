@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Sora', 'Avenir Next', 'Trebuchet MS', sans-serif;
+  line-height: 1.4;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 480px at 5% -10%, #bae6fd 0%, transparent 70%),
+    radial-gradient(900px 420px at 95% 0%, #fef3c7 0%, transparent 72%),
+    linear-gradient(165deg, #f0f9ff, #fffbeb);
+}
+
+#root {
+  min-height: 100vh;
+}
