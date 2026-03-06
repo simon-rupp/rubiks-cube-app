@@ -47,13 +47,21 @@ describe('useCubeGestures.logic', () => {
       move: 'L',
       label: 'Left column up',
     })
-    expect(mapSwipeToMove({ row: 1, col: 1 }, 'vertical', 30)).toMatchObject({
+    expect(mapSwipeToMove({ row: 1, col: 1 }, 'vertical', -30)).toMatchObject({
       move: 'M',
+      label: 'Middle column up',
+    })
+    expect(mapSwipeToMove({ row: 1, col: 1 }, 'vertical', 30)).toMatchObject({
+      move: "M'",
       label: 'Middle column down',
     })
     expect(mapSwipeToMove({ row: 1, col: 2 }, 'vertical', -30)).toMatchObject({
       move: "R'",
       label: 'Right column up',
+    })
+    expect(mapSwipeToMove({ row: 1, col: 2 }, 'vertical', 30)).toMatchObject({
+      move: 'R',
+      label: 'Right column down',
     })
   })
 })

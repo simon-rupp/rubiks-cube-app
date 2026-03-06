@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -25,6 +25,15 @@ function getLastActionStatus(): HTMLElement {
   return status
 }
 
+function getLayerRow(label: RegExp): HTMLElement {
+  const rowLabel = screen.getByText(label)
+  const row = rowLabel.closest('.layer-row')
+  if (!(row instanceof HTMLElement)) {
+    throw new Error(`Missing layer row for ${label.toString()}`)
+  }
+  return row
+}
+
 describe('App smoke flows', () => {
   it('handles scramble and reset from control buttons', () => {
     render(<App />)
@@ -36,14 +45,52 @@ describe('App smoke flows', () => {
     expect(getLastActionStatus()).toHaveTextContent('Reset to solved state')
   })
 
-  it('applies keyboard controls for cube moves', () => {
+  it('maps left/right keyboard turns to expected orientation semantics', () => {
     render(<App />)
 
     fireEvent.keyDown(window, { key: 'ArrowLeft' })
-    expect(getLastActionStatus()).toHaveTextContent("Turn Left (y')")
+    expect(getLastActionStatus()).toHaveTextContent('Turn Left (y)')
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(getLastActionStatus()).toHaveTextContent("Turn Right (y')")
+  })
+
+  it('maps left/right orientation buttons to expected turn directions', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: /turn left/i }))
+    expect(getLastActionStatus()).toHaveTextContent('Turn Left (y)')
+
+    fireEvent.click(screen.getByRole('button', { name: /turn right/i }))
+    expect(getLastActionStatus()).toHaveTextContent("Turn Right (y')")
+  })
+
+  it('still supports reset keyboard shortcut', () => {
+    render(<App />)
 
     fireEvent.keyDown(window, { key: 'r' })
     expect(getLastActionStatus()).toHaveTextContent('Reset to solved state')
+  })
+
+  it('maps middle-column keyboard shortcuts to expected directions', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'i' })
+    expect(getLastActionStatus()).toHaveTextContent('Middle column up (M)')
+
+    fireEvent.keyDown(window, { key: 'k' })
+    expect(getLastActionStatus()).toHaveTextContent("Middle column down (M')")
+  })
+
+  it('maps middle-column buttons to expected directions', () => {
+    render(<App />)
+
+    const middleColumnRow = getLayerRow(/middle column/i)
+    fireEvent.click(within(middleColumnRow).getByRole('button', { name: /up/i }))
+    expect(getLastActionStatus()).toHaveTextContent('Middle column up (M)')
+
+    fireEvent.click(within(middleColumnRow).getByRole('button', { name: /down/i }))
+    expect(getLastActionStatus()).toHaveTextContent("Middle column down (M')")
   })
 
   it('supports drag rotation on diagonal gestures', () => {
