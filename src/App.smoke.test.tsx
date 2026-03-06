@@ -76,10 +76,10 @@ describe('App smoke flows', () => {
     render(<App />)
 
     fireEvent.keyDown(window, { key: 'i' })
-    expect(getLastActionStatus()).toHaveTextContent('Middle column up (M)')
+    expect(getLastActionStatus()).toHaveTextContent("Middle column up (M')")
 
     fireEvent.keyDown(window, { key: 'k' })
-    expect(getLastActionStatus()).toHaveTextContent("Middle column down (M')")
+    expect(getLastActionStatus()).toHaveTextContent('Middle column down (M)')
   })
 
   it('maps middle-column buttons to expected directions', () => {
@@ -87,10 +87,31 @@ describe('App smoke flows', () => {
 
     const middleColumnRow = getLayerRow(/middle column/i)
     fireEvent.click(within(middleColumnRow).getByRole('button', { name: /up/i }))
-    expect(getLastActionStatus()).toHaveTextContent('Middle column up (M)')
+    expect(getLastActionStatus()).toHaveTextContent("Middle column up (M')")
 
     fireEvent.click(within(middleColumnRow).getByRole('button', { name: /down/i }))
-    expect(getLastActionStatus()).toHaveTextContent("Middle column down (M')")
+    expect(getLastActionStatus()).toHaveTextContent('Middle column down (M)')
+  })
+
+  it('maps top-row keyboard shortcuts to expected directions', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'q' })
+    expect(getLastActionStatus()).toHaveTextContent('Top row left (U)')
+
+    fireEvent.keyDown(window, { key: 'w' })
+    expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
+  })
+
+  it('maps top-row buttons to expected directions', () => {
+    render(<App />)
+
+    const topRow = getLayerRow(/top row/i)
+    fireEvent.click(within(topRow).getByRole('button', { name: /left/i }))
+    expect(getLastActionStatus()).toHaveTextContent('Top row left (U)')
+
+    fireEvent.click(within(topRow).getByRole('button', { name: /right/i }))
+    expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
   })
 
   it('supports drag rotation on diagonal gestures', () => {
@@ -151,6 +172,6 @@ describe('App smoke flows', () => {
       isPrimary: true,
     })
 
-    expect(getLastActionStatus()).toHaveTextContent('Top row right (U)')
+    expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
   })
 })

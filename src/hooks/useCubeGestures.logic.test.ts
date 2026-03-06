@@ -29,38 +29,38 @@ describe('useCubeGestures.logic', () => {
 
   it('maps horizontal row swipes to row moves', () => {
     expect(mapSwipeToMove({ row: 0, col: 1 }, 'horizontal', 30)).toMatchObject({
-      move: 'U',
+      move: "U'",
       label: 'Top row right',
     })
     expect(mapSwipeToMove({ row: 1, col: 1 }, 'horizontal', -30)).toMatchObject({
-      move: 'E',
+      move: "E'",
       label: 'Middle row left',
     })
     expect(mapSwipeToMove({ row: 2, col: 1 }, 'horizontal', 30)).toMatchObject({
-      move: "D'",
+      move: 'D',
       label: 'Bottom row right',
     })
   })
 
   it('maps vertical column swipes to column moves', () => {
     expect(mapSwipeToMove({ row: 1, col: 0 }, 'vertical', -30)).toMatchObject({
-      move: 'L',
+      move: "L'",
       label: 'Left column up',
     })
     expect(mapSwipeToMove({ row: 1, col: 1 }, 'vertical', -30)).toMatchObject({
-      move: 'M',
+      move: "M'",
       label: 'Middle column up',
     })
     expect(mapSwipeToMove({ row: 1, col: 1 }, 'vertical', 30)).toMatchObject({
-      move: "M'",
+      move: 'M',
       label: 'Middle column down',
     })
     expect(mapSwipeToMove({ row: 1, col: 2 }, 'vertical', -30)).toMatchObject({
-      move: "R'",
+      move: 'R',
       label: 'Right column up',
     })
     expect(mapSwipeToMove({ row: 1, col: 2 }, 'vertical', 30)).toMatchObject({
-      move: 'R',
+      move: "R'",
       label: 'Right column down',
     })
   })
