@@ -77,6 +77,7 @@ nvm use
 
 - Visual QA checklist: `docs/visual-qa-checklist.md`
 - Release/regression checklist: `docs/release-regression-checklist.md`
+- Orientation semantics spec: `docs/orientation-turn-semantics.md`
 
 ## Known Limitations
 
