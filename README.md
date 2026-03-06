@@ -18,6 +18,25 @@ npm install
 npm run dev
 ```
 
+## Node Runtime
+
+- Node.js `20.19+` (or `22.12+`) is required by Vite 7.
+- `.nvmrc` pins the baseline runtime to `20.19.0`.
+
+```bash
+nvm use
+```
+
+## Quality Check and M1 Parity
+
+- Run `npm run check` for `typecheck + lint + build`.
+- M1 refactor preserved the same control behavior:
+1. `Scramble` and `Reset` buttons still trigger the same cube actions.
+2. Arrow keys still rotate cube orientation.
+3. `Q/W`, `A/S`, `Z/X` still control row moves.
+4. `U/J`, `I/K`, `O/L` still control column moves.
+5. `Space` still scrambles and `R` still resets.
+
 ## UX Layout Strategy
 
 This MVP uses a two-panel layout for clarity and speed:
