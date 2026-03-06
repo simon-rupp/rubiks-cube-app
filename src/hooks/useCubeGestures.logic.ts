@@ -145,8 +145,8 @@ export function mapSwipeToMove(
     }
   }
 
-  const upMoves = ['L', "M'", "R'"]
-  const downMoves = ["L'", 'M', 'R']
+  const upMoves = ['L', 'M', "R'"]
+  const downMoves = ["L'", "M'", 'R']
   const move = direction === 'up' ? upMoves[region.col] : downMoves[region.col]
 
   return {

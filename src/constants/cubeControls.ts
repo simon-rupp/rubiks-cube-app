@@ -18,8 +18,8 @@ export const STICKER_COLORS: Record<string, string> = {
 }
 
 export const ORIENTATION_CONTROLS: DirectionButton[] = [
-  { label: 'Turn Left', keyHint: 'Arrow Left', move: "y'" },
-  { label: 'Turn Right', keyHint: 'Arrow Right', move: 'y' },
+  { label: 'Turn Left', keyHint: 'Arrow Left', move: 'y' },
+  { label: 'Turn Right', keyHint: 'Arrow Right', move: "y'" },
   { label: 'Turn Up', keyHint: 'Arrow Up', move: 'x' },
   { label: 'Turn Down', keyHint: 'Arrow Down', move: "x'" },
 ]
@@ -50,8 +50,8 @@ export const COLUMN_CONTROLS: ColumnControl[] = [
   },
   {
     column: 'Middle column',
-    up: { label: 'Up', keyHint: 'I', move: "M'" },
-    down: { label: 'Down', keyHint: 'K', move: 'M' },
+    up: { label: 'Up', keyHint: 'I', move: 'M' },
+    down: { label: 'Down', keyHint: 'K', move: "M'" },
   },
   {
     column: 'Right column',
@@ -61,8 +61,8 @@ export const COLUMN_CONTROLS: ColumnControl[] = [
 ]
 
 export const SHORTCUTS: Record<string, Shortcut> = {
-  ArrowLeft: { type: 'move', label: 'Turn Left', move: "y'" },
-  ArrowRight: { type: 'move', label: 'Turn Right', move: 'y' },
+  ArrowLeft: { type: 'move', label: 'Turn Left', move: 'y' },
+  ArrowRight: { type: 'move', label: 'Turn Right', move: "y'" },
   ArrowUp: { type: 'move', label: 'Turn Up', move: 'x' },
   ArrowDown: { type: 'move', label: 'Turn Down', move: "x'" },
   q: { type: 'move', label: 'Top row left', move: "U'" },
@@ -73,8 +73,8 @@ export const SHORTCUTS: Record<string, Shortcut> = {
   x: { type: 'move', label: 'Bottom row right', move: "D'" },
   u: { type: 'move', label: 'Left column up', move: 'L' },
   j: { type: 'move', label: 'Left column down', move: "L'" },
-  i: { type: 'move', label: 'Middle column up', move: "M'" },
-  k: { type: 'move', label: 'Middle column down', move: 'M' },
+  i: { type: 'move', label: 'Middle column up', move: 'M' },
+  k: { type: 'move', label: 'Middle column down', move: "M'" },
   o: { type: 'move', label: 'Right column up', move: "R'" },
   l: { type: 'move', label: 'Right column down', move: 'R' },
   ' ': { type: 'scramble' },
