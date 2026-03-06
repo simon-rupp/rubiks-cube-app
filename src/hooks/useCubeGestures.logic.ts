@@ -132,8 +132,8 @@ export function mapSwipeToMove(
   const direction = directionFromDelta(axis, delta)
 
   if (axis === 'horizontal') {
-    const leftMoves = ["U'", 'E', 'D']
-    const rightMoves = ['U', "E'", "D'"]
+    const leftMoves = ['U', "E'", "D'"]
+    const rightMoves = ["U'", 'E', 'D']
     const move = direction === 'right' ? rightMoves[region.row] : leftMoves[region.row]
 
     return {
@@ -145,8 +145,8 @@ export function mapSwipeToMove(
     }
   }
 
-  const upMoves = ['L', 'M', "R'"]
-  const downMoves = ["L'", "M'", 'R']
+  const upMoves = ["L'", "M'", 'R']
+  const downMoves = ['L', 'M', "R'"]
   const move = direction === 'up' ? upMoves[region.col] : downMoves[region.col]
 
   return {
