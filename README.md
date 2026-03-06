@@ -1,15 +1,16 @@
 # Rubik's Cube Trainer
 
-A simple, intuitive Rubik's Cube web app focused on easy controls first:
+A keyboard-first Rubik's Cube trainer with direct touch gestures:
 
-- Visual cube state (3D cube view)
-- `Scramble` and `Reset`
-- Turn whole cube: left, right, up, down
-- Move rows: left/right (top/middle/bottom)
-- Move columns: up/down (left/middle/right)
-- Keyboard shortcuts for all controls
+- 3D cube rendering with responsive stage sizing
+- Scramble / reset controls
+- Keyboard and button controls for rows, columns, and cube orientation
+- Touch gestures for mobile play:
+  - diagonal drag to rotate view
+  - row/column swipe to execute moves
+- Live swipe preview and optional haptic feedback
 
-Built with React + TypeScript + Vite and `cubejs` for reliable cube state logic.
+Built with React + TypeScript + Vite and `cubejs`.
 
 ## Run
 
@@ -27,67 +28,60 @@ npm run dev
 nvm use
 ```
 
-## Quality Check and M1 Parity
+## Quality Gates
 
-- Run `npm run check` for `typecheck + lint + build`.
-- M1 refactor preserved the same control behavior:
-1. `Scramble` and `Reset` buttons still trigger the same cube actions.
-2. Arrow keys still rotate cube orientation.
-3. `Q/W`, `A/S`, `Z/X` still control row moves.
-4. `U/J`, `I/K`, `O/L` still control column moves.
-5. `Space` still scrambles and `R` still resets.
+- `npm run check` runs `typecheck + lint + build`.
+- `npm run test` runs unit + smoke tests.
 
-## UX Layout Strategy
+## Controls
 
-This MVP uses a two-panel layout for clarity and speed:
-
-- Left/Center: large cube view
-- Right: grouped controls in this order
-1. Session actions (`Scramble`, `Reset`)
-2. Cube orientation (`Turn Left/Right/Up/Down`)
-3. Row controls (`Top/Middle/Bottom`)
-4. Column controls (`Left/Middle/Right`)
-
-Why this works:
-
-- Most common actions are at the top.
-- Directional tasks are grouped by mental model: first orient the cube, then move slices.
-- Every button includes both plain-language direction and move notation.
-- Buttons are touch-size friendly (44px minimum), so mobile users can already use the MVP.
-
-## Keyboard Mapping
+### Keyboard
 
 - `Space`: scramble
 - `R`: reset
-- `Arrow keys`: turn cube
+- `Arrow keys`: rotate cube orientation
 - Rows:
-1. `Q` / `W` top left/right
-2. `A` / `S` middle left/right
-3. `Z` / `X` bottom left/right
+  - `Q` / `W`: top row left/right
+  - `A` / `S`: middle row left/right
+  - `Z` / `X`: bottom row left/right
 - Columns:
-1. `U` / `J` left up/down
-2. `I` / `K` middle up/down
-3. `O` / `L` right up/down
+  - `U` / `J`: left column up/down
+  - `I` / `K`: middle column up/down
+  - `O` / `L`: right column up/down
 
-## Phase Plan
+### Touch / Pointer
 
-### Phase 1 (Current)
+- Drag diagonally on the cube area to rotate view (`viewYaw` / `viewPitch`).
+- Swipe horizontally on the cube area to move rows:
+  - top => `U/U'`
+  - middle => `E/E'`
+  - bottom => `D/D'`
+- Swipe vertically on the cube area to move columns:
+  - left => `L/L'`
+  - middle => `M/M'`
+  - right => `R/R'`
+- Touch controls card includes:
+  - gesture sensitivity (`low`, `medium`, `high`)
+  - haptic feedback toggle (when browser/device supports vibration)
 
-- Working button + keyboard controls
-- Scramble/reset
-- Responsive desktop/mobile layout
-- 3D cube render (all 6 faces)
+## Supported Interactions Matrix
 
-### Phase 2 (Next)
+| Interaction | Desktop keyboard | Desktop mouse | Mobile touch |
+| --- | --- | --- | --- |
+| Scramble / reset | Yes | Yes | Yes |
+| Cube orientation | Yes (`Arrow`) | Yes (diagonal drag) | Yes (diagonal drag) |
+| Row moves | Yes (`Q/W`, `A/S`, `Z/X`) | Yes (horizontal swipe) | Yes (horizontal swipe) |
+| Column moves | Yes (`U/J`, `I/K`, `O/L`) | Yes (vertical swipe) | Yes (vertical swipe) |
 
-- Add direct touch gestures:
-1. Swipe on cube rows left/right
-2. Swipe on cube columns up/down
-3. Drag to rotate cube orientation
-- Add optional move history and undo
+## Validation Artifacts
 
-### Phase 3 (Optional)
+- Visual QA checklist: `docs/visual-qa-checklist.md`
+- Release/regression checklist: `docs/release-regression-checklist.md`
 
-- Timed mode
-- Beginner algorithm trainer
-- Solver integration
+## Known Limitations
+
+- Gesture engine is single-pointer only (multi-touch is ignored in v1).
+- Gesture mode split is axis-dominance based:
+  - dominant horizontal/vertical => swipe move
+  - near-diagonal => view rotation
+- Haptic feedback depends on browser/device vibration support.
