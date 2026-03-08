@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -32,6 +32,35 @@ function getLayerRow(label: RegExp): HTMLElement {
     throw new Error(`Missing layer row for ${label.toString()}`)
   }
   return row
+}
+
+function getFrontSticker(interaction: HTMLElement): HTMLElement {
+  const sticker = interaction.querySelector('.face-front .sticker')
+  if (!(sticker instanceof HTMLElement)) {
+    throw new Error('Missing front-face sticker target')
+  }
+  return sticker
+}
+
+function getFaceSticker(
+  interaction: HTMLElement,
+  faceClass: string,
+  index: number,
+): HTMLElement {
+  const stickers = interaction.querySelectorAll<HTMLElement>(`${faceClass} .sticker`)
+  const sticker = stickers[index]
+  if (!(sticker instanceof HTMLElement)) {
+    throw new Error(`Missing sticker ${index} for ${faceClass}`)
+  }
+  return sticker
+}
+
+function getCubeElement(interaction: HTMLElement): HTMLElement {
+  const cube = interaction.querySelector('.cube-3d')
+  if (!(cube instanceof HTMLElement)) {
+    throw new Error('Missing cube element')
+  }
+  return cube
 }
 
 describe('App smoke flows', () => {
@@ -114,7 +143,7 @@ describe('App smoke flows', () => {
     expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
   })
 
-  it('supports drag rotation on diagonal gestures', () => {
+  it('supports orbiting from a direct drag on the cube surface', () => {
     render(<App />)
 
     const interaction = screen.getByRole('img', { name: /interaction area/i })
@@ -129,14 +158,14 @@ describe('App smoke flows', () => {
     })
     fireEvent.pointerMove(interaction, {
       pointerId: 1,
-      clientX: 144,
-      clientY: 140,
+      clientX: 150,
+      clientY: 120,
       isPrimary: true,
     })
     fireEvent.pointerUp(interaction, {
       pointerId: 1,
-      clientX: 144,
-      clientY: 140,
+      clientX: 150,
+      clientY: 120,
       isPrimary: true,
     })
 
@@ -146,32 +175,249 @@ describe('App smoke flows', () => {
     expect(cube?.getAttribute('style')).not.toContain('--view-yaw: -22deg')
   })
 
-  it('supports swipe-to-move on the cube surface', () => {
+  it('emits face and sticker coordinates on visible sticker targets', () => {
     render(<App />)
 
     const interaction = screen.getByRole('img', { name: /interaction area/i })
-    mockInteractionBounds(interaction)
+    const frontTopLeft = getFaceSticker(interaction, '.face-front', 0)
+    const frontCenter = getFaceSticker(interaction, '.face-front', 4)
+    const rightTopLeft = getFaceSticker(interaction, '.face-right', 0)
 
-    fireEvent.pointerDown(interaction, {
-      pointerId: 2,
-      clientX: 72,
-      clientY: 70,
-      button: 0,
-      isPrimary: true,
-    })
-    fireEvent.pointerMove(interaction, {
-      pointerId: 2,
-      clientX: 126,
-      clientY: 76,
-      isPrimary: true,
-    })
-    fireEvent.pointerUp(interaction, {
-      pointerId: 2,
-      clientX: 126,
-      clientY: 76,
-      isPrimary: true,
-    })
+    expect(frontTopLeft.dataset.face).toBe('F')
+    expect(frontTopLeft.dataset.row).toBe('0')
+    expect(frontTopLeft.dataset.col).toBe('0')
 
-    expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
+    expect(frontCenter.dataset.face).toBe('F')
+    expect(frontCenter.dataset.row).toBe('1')
+    expect(frontCenter.dataset.col).toBe('1')
+
+    expect(rightTopLeft.dataset.face).toBe('R')
+    expect(rightTopLeft.dataset.row).toBe('0')
+    expect(rightTopLeft.dataset.col).toBe('0')
+  })
+
+  it('supports hold-to-slice moves on the cube surface', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 2,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      fireEvent.pointerMove(interaction, {
+        pointerId: 2,
+        clientX: 126,
+        clientY: 76,
+        isPrimary: true,
+      })
+      fireEvent.pointerUp(interaction, {
+        pointerId: 2,
+        clientX: 126,
+        clientY: 76,
+        isPrimary: true,
+      })
+
+      expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancels slice arming on early drift and falls back to orbiting', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 3,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(100)
+      })
+
+      fireEvent.pointerMove(interaction, {
+        pointerId: 3,
+        clientX: 112,
+        clientY: 70,
+        isPrimary: true,
+      })
+      fireEvent.pointerUp(interaction, {
+        pointerId: 3,
+        clientX: 112,
+        clientY: 70,
+        isPrimary: true,
+      })
+
+      expect(getLastActionStatus()).toHaveTextContent('Ready')
+      expect(getCubeElement(interaction).getAttribute('style')).not.toContain(
+        '--view-yaw: -22deg',
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not commit when an armed slice is released before commit distance', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 4,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      fireEvent.pointerMove(interaction, {
+        pointerId: 4,
+        clientX: 92,
+        clientY: 74,
+        isPrimary: true,
+      })
+      fireEvent.pointerUp(interaction, {
+        pointerId: 4,
+        clientX: 92,
+        clientY: 74,
+        isPrimary: true,
+      })
+
+      expect(getLastActionStatus()).toHaveTextContent('Ready')
+      expect(screen.queryByText(/swipe preview:/i)).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears armed slice state on lost pointer capture', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 5,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      fireEvent.pointerMove(interaction, {
+        pointerId: 5,
+        clientX: 126,
+        clientY: 76,
+        isPrimary: true,
+      })
+      expect(screen.getByText(/swipe preview:/i)).toBeInTheDocument()
+
+      fireEvent.lostPointerCapture(interaction, {
+        pointerId: 5,
+        isPrimary: true,
+      })
+      fireEvent.pointerUp(interaction, {
+        pointerId: 5,
+        clientX: 126,
+        clientY: 76,
+        isPrimary: true,
+      })
+
+      expect(getLastActionStatus()).toHaveTextContent('Ready')
+      expect(screen.queryByText(/swipe preview:/i)).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('aborts the active gesture when a second pointer starts', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 6,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      fireEvent.pointerDown(interaction, {
+        pointerId: 7,
+        clientX: 140,
+        clientY: 140,
+        button: 0,
+        isPrimary: true,
+      })
+
+      fireEvent.pointerMove(interaction, {
+        pointerId: 6,
+        clientX: 126,
+        clientY: 76,
+        isPrimary: true,
+      })
+      fireEvent.pointerUp(interaction, {
+        pointerId: 6,
+        clientX: 126,
+        clientY: 76,
+        isPrimary: true,
+      })
+
+      expect(getLastActionStatus()).toHaveTextContent('Ready')
+      expect(screen.queryByText(/swipe preview:/i)).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

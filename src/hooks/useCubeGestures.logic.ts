@@ -1,10 +1,27 @@
+import type { Face } from '../types/cube'
+
 export type GestureSensitivity = 'low' | 'medium' | 'high'
 export type SwipeAxis = 'horizontal' | 'vertical'
 export type SwipeDirection = 'left' | 'right' | 'up' | 'down'
 
+export type GestureSensitivityProfile = {
+  orbitStartSlopPx: number
+  sliceCommitDistancePx: number
+  sliceHoldDurationMs: number
+  sliceArmDriftTolerancePx: number
+  rotateDegreesPerPixel: number
+  hapticPulseMs: number
+  startThresholdPx: number
+  commitThresholdPx: number
+}
+
 export type GridRegion = {
   row: 0 | 1 | 2
   col: 0 | 1 | 2
+}
+
+export type FaceGridTarget = GridRegion & {
+  face: Face
 }
 
 export type BoundsRect = {
@@ -28,21 +45,39 @@ export const COLUMN_LABELS = ['Left column', 'Middle column', 'Right column'] as
 export const VIEW_PITCH_MIN = -70
 export const VIEW_PITCH_MAX = 70
 
-export const GESTURE_SENSITIVITY_PROFILES = {
+export const GESTURE_SENSITIVITY_PROFILES: Record<
+  GestureSensitivity,
+  GestureSensitivityProfile
+> = {
   low: {
-    startThresholdPx: 14,
-    commitThresholdPx: 38,
+    orbitStartSlopPx: 12,
+    sliceCommitDistancePx: 34,
+    sliceHoldDurationMs: 180,
+    sliceArmDriftTolerancePx: 10,
     rotateDegreesPerPixel: 0.2,
+    hapticPulseMs: 12,
+    startThresholdPx: 12,
+    commitThresholdPx: 34,
   },
   medium: {
-    startThresholdPx: 10,
-    commitThresholdPx: 26,
+    orbitStartSlopPx: 8,
+    sliceCommitDistancePx: 26,
+    sliceHoldDurationMs: 180,
+    sliceArmDriftTolerancePx: 10,
     rotateDegreesPerPixel: 0.24,
+    hapticPulseMs: 12,
+    startThresholdPx: 8,
+    commitThresholdPx: 26,
   },
   high: {
-    startThresholdPx: 8,
+    orbitStartSlopPx: 6,
+    sliceCommitDistancePx: 20,
+    sliceHoldDurationMs: 180,
+    sliceArmDriftTolerancePx: 10,
     commitThresholdPx: 20,
     rotateDegreesPerPixel: 0.28,
+    hapticPulseMs: 12,
+    startThresholdPx: 6,
   },
 } as const
 
@@ -68,6 +103,60 @@ function clampGridIndex(value: number): 0 | 1 | 2 {
 
 export function clampPitch(pitch: number): number {
   return Math.min(VIEW_PITCH_MAX, Math.max(VIEW_PITCH_MIN, pitch))
+}
+
+export function getGestureSensitivityProfile(
+  sensitivity: GestureSensitivity,
+): GestureSensitivityProfile {
+  return GESTURE_SENSITIVITY_PROFILES[sensitivity]
+}
+
+export function getGestureTravelDistance(deltaX: number, deltaY: number): number {
+  return Math.hypot(deltaX, deltaY)
+}
+
+export function getAxisDelta(
+  axis: SwipeAxis,
+  deltaX: number,
+  deltaY: number,
+): number {
+  return axis === 'horizontal' ? deltaX : deltaY
+}
+
+export function hasCrossedOrbitStartSlop(
+  deltaX: number,
+  deltaY: number,
+  orbitStartSlopPx: number,
+): boolean {
+  return getGestureTravelDistance(deltaX, deltaY) >= orbitStartSlopPx
+}
+
+export function hasExceededSliceArmDriftTolerance(
+  deltaX: number,
+  deltaY: number,
+  sliceArmDriftTolerancePx: number,
+): boolean {
+  return getGestureTravelDistance(deltaX, deltaY) > sliceArmDriftTolerancePx
+}
+
+export function hasReachedSliceCommitDistance(
+  axisDelta: number,
+  sliceCommitDistancePx: number,
+): boolean {
+  return Math.abs(axisDelta) >= sliceCommitDistancePx
+}
+
+export function projectOrbitView(
+  startYaw: number,
+  startPitch: number,
+  deltaX: number,
+  deltaY: number,
+  rotateDegreesPerPixel: number,
+): { yaw: number; pitch: number } {
+  return {
+    yaw: startYaw + deltaX * rotateDegreesPerPixel,
+    pitch: clampPitch(startPitch - deltaY * rotateDegreesPerPixel),
+  }
 }
 
 export function mapPointToGridRegion(
@@ -117,11 +206,76 @@ export function describeSwipeIntent(
   axis: SwipeAxis,
   delta: number,
 ): string {
+  return mapSwipeToMove(region, axis, delta).label
+}
+
+const HORIZONTAL_LEFT_MOVES = ['U', "E'", "D'"] as const
+const HORIZONTAL_RIGHT_MOVES = ["U'", 'E', 'D'] as const
+const VERTICAL_UP_MOVES = ["L'", "M'", 'R'] as const
+const VERTICAL_DOWN_MOVES = ['L', 'M', "R'"] as const
+const BACK_FACE_VERTICAL_UP_MOVES = ["R'", 'M', 'L'] as const
+const BACK_FACE_VERTICAL_DOWN_MOVES = ['R', "M'", "L'"] as const
+
+function supportsHorizontalFaceLocalDrag(face: Face): boolean {
+  return face === 'F' || face === 'R' || face === 'L' || face === 'B'
+}
+
+function supportsVerticalFaceLocalDrag(face: Face): boolean {
+  return face === 'F' || face === 'U' || face === 'D' || face === 'B'
+}
+
+export function mapFaceLocalDragToMove(
+  target: FaceGridTarget,
+  axis: SwipeAxis,
+  delta: number,
+): SwipeMove | null {
   const direction = directionFromDelta(axis, delta)
+
   if (axis === 'horizontal') {
-    return `${ROW_LABELS[region.row]} ${direction}`
+    if (!supportsHorizontalFaceLocalDrag(target.face)) {
+      return null
+    }
+
+    const move =
+      direction === 'right'
+        ? HORIZONTAL_RIGHT_MOVES[target.row]
+        : HORIZONTAL_LEFT_MOVES[target.row]
+
+    return {
+      move,
+      label: `${ROW_LABELS[target.row]} ${direction}`,
+      direction,
+      axis,
+      region: {
+        row: target.row,
+        col: target.col,
+      },
+    }
   }
-  return `${COLUMN_LABELS[region.col]} ${direction}`
+
+  if (!supportsVerticalFaceLocalDrag(target.face)) {
+    return null
+  }
+
+  const moveTable =
+    target.face === 'B'
+      ? direction === 'up'
+        ? BACK_FACE_VERTICAL_UP_MOVES
+        : BACK_FACE_VERTICAL_DOWN_MOVES
+      : direction === 'up'
+        ? VERTICAL_UP_MOVES
+        : VERTICAL_DOWN_MOVES
+
+  return {
+    move: moveTable[target.col],
+    label: `${COLUMN_LABELS[target.col]} ${direction}`,
+    direction,
+    axis,
+    region: {
+      row: target.row,
+      col: target.col,
+    },
+  }
 }
 
 export function mapSwipeToMove(
@@ -129,31 +283,18 @@ export function mapSwipeToMove(
   axis: SwipeAxis,
   delta: number,
 ): SwipeMove {
-  const direction = directionFromDelta(axis, delta)
-
-  if (axis === 'horizontal') {
-    const leftMoves = ['U', "E'", "D'"]
-    const rightMoves = ["U'", 'E', 'D']
-    const move = direction === 'right' ? rightMoves[region.row] : leftMoves[region.row]
-
-    return {
-      move,
-      label: `${ROW_LABELS[region.row]} ${direction}`,
-      direction,
-      axis,
-      region,
-    }
-  }
-
-  const upMoves = ["L'", "M'", 'R']
-  const downMoves = ['L', 'M', "R'"]
-  const move = direction === 'up' ? upMoves[region.col] : downMoves[region.col]
-
-  return {
-    move,
-    label: `${COLUMN_LABELS[region.col]} ${direction}`,
-    direction,
+  const swipeMove = mapFaceLocalDragToMove(
+    {
+      face: 'F',
+      row: region.row,
+      col: region.col,
+    },
     axis,
-    region,
+    delta,
+  )
+  if (!swipeMove) {
+    throw new Error('Front-face drag mapping unexpectedly failed')
   }
+
+  return swipeMove
 }

@@ -20,13 +20,18 @@ type FaceStickersProps = {
 function FaceStickers({ face, stickers }: FaceStickersProps) {
   return (
     <div className="face-grid-3d" aria-label={`${face} face`}>
-      {stickers.flat().map((sticker, index) => (
+      {stickers.flatMap((stickerRow, row) =>
+        stickerRow.map((sticker, col) => (
         <span
           className="sticker"
-          key={`${face}-${index}`}
+          key={`${face}-${row}-${col}`}
+          data-face={face}
+          data-row={row}
+          data-col={col}
           style={{ backgroundColor: STICKER_COLORS[sticker] ?? '#111827' }}
         />
-      ))}
+        )),
+      )}
     </div>
   )
 }
