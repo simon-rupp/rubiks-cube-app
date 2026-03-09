@@ -2,6 +2,45 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+function mockMatchMedia(initialMatches: boolean) {
+  const originalMatchMedia = window.matchMedia
+  const listeners = new Set<(event: MediaQueryListEvent) => void>()
+  const mediaQuery = {
+    matches: initialMatches,
+    media: '(max-width: 620px)',
+    onchange: null,
+    addEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
+      if (type === 'change') {
+        listeners.add(listener)
+      }
+    }),
+    removeEventListener: vi.fn(
+      (type: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (type === 'change') {
+          listeners.delete(listener)
+        }
+      },
+    ),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  } as unknown as MediaQueryList
+
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn(() => mediaQuery),
+  })
+
+  return {
+    restore: () => {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        value: originalMatchMedia,
+      })
+    },
+  }
+}
+
 function mockInteractionBounds(element: HTMLElement): void {
   vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
     x: 0,
@@ -21,6 +60,15 @@ function getLastActionStatus(): HTMLElement {
   const status = label.closest('p')
   if (!status) {
     throw new Error('Missing last action status element')
+  }
+  return status
+}
+
+function getGestureStatus(): HTMLElement {
+  const label = screen.getByText(/gesture:/i)
+  const status = label.closest('p')
+  if (!status) {
+    throw new Error('Missing gesture status element')
   }
   return status
 }
@@ -61,6 +109,32 @@ function getCubeElement(interaction: HTMLElement): HTMLElement {
     throw new Error('Missing cube element')
   }
   return cube
+}
+
+function expectRenderedBefore(first: HTMLElement, second: HTMLElement): void {
+  expect(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+}
+
+function mockNavigatorVibrate() {
+  const originalVibrate = navigator.vibrate
+  const vibrate = vi.fn()
+
+  Object.defineProperty(window.navigator, 'vibrate', {
+    configurable: true,
+    value: vibrate,
+  })
+
+  return {
+    vibrate,
+    restore: () => {
+      Object.defineProperty(window.navigator, 'vibrate', {
+        configurable: true,
+        value: originalVibrate,
+      })
+    },
+  }
 }
 
 describe('App smoke flows', () => {
@@ -143,6 +217,46 @@ describe('App smoke flows', () => {
     expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
   })
 
+  it('renders session actions and quick touch guidance before dense move grids', () => {
+    render(<App />)
+
+    const sessionHeading = screen.getByRole('heading', { name: /session/i })
+    const guideHeading = screen.getByRole('heading', { name: /quick touch guide/i })
+    const turnHeading = screen.getByRole('heading', { name: /turn cube/i })
+    const rowsHeading = screen.getByRole('heading', { name: /move rows/i })
+    const columnsHeading = screen.getByRole('heading', { name: /move columns/i })
+
+    expectRenderedBefore(sessionHeading, turnHeading)
+    expectRenderedBefore(guideHeading, turnHeading)
+    expectRenderedBefore(guideHeading, rowsHeading)
+    expectRenderedBefore(guideHeading, columnsHeading)
+  })
+
+  it('collapses fallback controls behind a single mobile toggle', () => {
+    const matchMedia = mockMatchMedia(true)
+
+    try {
+      render(<App />)
+
+      const toggle = screen.getByRole('button', { name: /show secondary controls/i })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.getByText(/when you need the fallback controls/i)).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: /turn cube/i })).not.toBeInTheDocument()
+
+      fireEvent.click(toggle)
+
+      expect(
+        screen.getByRole('button', { name: /hide secondary controls/i }),
+      ).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByRole('heading', { name: /turn cube/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /move rows/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /move columns/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /touch settings/i })).toBeInTheDocument()
+    } finally {
+      matchMedia.restore()
+    }
+  })
+
   it('supports orbiting from a direct drag on the cube surface', () => {
     render(<App />)
 
@@ -162,6 +276,7 @@ describe('App smoke flows', () => {
       clientY: 120,
       isPrimary: true,
     })
+    expect(getGestureStatus()).toHaveTextContent('Orbiting view')
     fireEvent.pointerUp(interaction, {
       pointerId: 1,
       clientX: 150,
@@ -173,6 +288,7 @@ describe('App smoke flows', () => {
     expect(cube).not.toBeNull()
     expect(cube?.getAttribute('style')).toContain('--view-yaw')
     expect(cube?.getAttribute('style')).not.toContain('--view-yaw: -22deg')
+    expect(screen.queryByText(/gesture:/i)).not.toBeInTheDocument()
   })
 
   it('emits face and sticker coordinates on visible sticker targets', () => {
@@ -194,6 +310,98 @@ describe('App smoke flows', () => {
     expect(rightTopLeft.dataset.face).toBe('R')
     expect(rightTopLeft.dataset.row).toBe('0')
     expect(rightTopLeft.dataset.col).toBe('0')
+  })
+
+  it('shows armed feedback on the touched sticker after the hold completes', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 8,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      expect(getGestureStatus()).toHaveTextContent('Slice armed')
+      expect(sticker).toHaveClass('sticker-armed-target')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('pulses haptics when slice mode arms and the toggle is enabled', () => {
+    vi.useFakeTimers()
+    const { vibrate, restore } = mockNavigatorVibrate()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 9,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      expect(vibrate).toHaveBeenCalledTimes(1)
+      expect(vibrate).toHaveBeenCalledWith(12)
+    } finally {
+      restore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not pulse haptics when the toggle is off', () => {
+    vi.useFakeTimers()
+    const { vibrate, restore } = mockNavigatorVibrate()
+
+    try {
+      render(<App />)
+
+      fireEvent.click(screen.getByLabelText(/pulse when slice mode arms/i))
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFrontSticker(interaction)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 10,
+        clientX: 72,
+        clientY: 70,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      expect(vibrate).not.toHaveBeenCalled()
+    } finally {
+      restore()
+      vi.useRealTimers()
+    }
   })
 
   it('supports hold-to-slice moves on the cube surface', () => {
@@ -317,7 +525,13 @@ describe('App smoke flows', () => {
       })
 
       expect(getLastActionStatus()).toHaveTextContent('Ready')
-      expect(screen.queryByText(/swipe preview:/i)).not.toBeInTheDocument()
+      expect(getGestureStatus()).toHaveTextContent('Gesture cancelled')
+
+      act(() => {
+        vi.advanceTimersByTime(250)
+      })
+
+      expect(screen.queryByText(/gesture:/i)).not.toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -351,7 +565,7 @@ describe('App smoke flows', () => {
         clientY: 76,
         isPrimary: true,
       })
-      expect(screen.getByText(/swipe preview:/i)).toBeInTheDocument()
+      expect(getGestureStatus()).toHaveTextContent('Top row right')
 
       fireEvent.lostPointerCapture(interaction, {
         pointerId: 5,
@@ -365,7 +579,13 @@ describe('App smoke flows', () => {
       })
 
       expect(getLastActionStatus()).toHaveTextContent('Ready')
-      expect(screen.queryByText(/swipe preview:/i)).not.toBeInTheDocument()
+      expect(getGestureStatus()).toHaveTextContent('Gesture cancelled')
+
+      act(() => {
+        vi.advanceTimersByTime(250)
+      })
+
+      expect(screen.queryByText(/gesture:/i)).not.toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -415,7 +635,13 @@ describe('App smoke flows', () => {
       })
 
       expect(getLastActionStatus()).toHaveTextContent('Ready')
-      expect(screen.queryByText(/swipe preview:/i)).not.toBeInTheDocument()
+      expect(getGestureStatus()).toHaveTextContent('Gesture cancelled')
+
+      act(() => {
+        vi.advanceTimersByTime(250)
+      })
+
+      expect(screen.queryByText(/gesture:/i)).not.toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }

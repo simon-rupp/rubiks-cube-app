@@ -15,44 +15,71 @@ type CubeViewProps = {
 type FaceStickersProps = {
   face: Face
   stickers: string[][]
+  activeSwipe: ActiveSwipeFeedback | null
 }
 
-function FaceStickers({ face, stickers }: FaceStickersProps) {
+function getStickerFeedbackClassName(
+  face: Face,
+  row: number,
+  col: number,
+  activeSwipe: ActiveSwipeFeedback | null,
+): string {
+  const classes = ['sticker']
+  const target = activeSwipe?.target
+  if (!target || face !== target.face) {
+    return classes.join(' ')
+  }
+
+  const isTarget = row === target.row && col === target.col
+  const isCandidate =
+    activeSwipe.axis === 'horizontal'
+      ? row === target.row
+      : activeSwipe.axis === 'vertical'
+        ? col === target.col
+        : false
+
+  if (activeSwipe.phase === 'armed' && isTarget) {
+    classes.push('sticker-armed-target')
+  }
+
+  if (activeSwipe.phase === 'dragging') {
+    if (isCandidate) {
+      classes.push('sticker-candidate')
+    }
+    if (isTarget) {
+      classes.push('sticker-candidate-target')
+    }
+  }
+
+  if (activeSwipe.phase === 'cancelled') {
+    if (isCandidate) {
+      classes.push('sticker-cancelled')
+    }
+    if (isTarget) {
+      classes.push('sticker-cancelled-target')
+    }
+  }
+
+  return classes.join(' ')
+}
+
+function FaceStickers({ face, stickers, activeSwipe }: FaceStickersProps) {
   return (
     <div className="face-grid-3d" aria-label={`${face} face`}>
       {stickers.flatMap((stickerRow, row) =>
         stickerRow.map((sticker, col) => (
-        <span
-          className="sticker"
-          key={`${face}-${row}-${col}`}
-          data-face={face}
-          data-row={row}
-          data-col={col}
-          style={{ backgroundColor: STICKER_COLORS[sticker] ?? '#111827' }}
-        />
+          <span
+            className={getStickerFeedbackClassName(face, row, col, activeSwipe)}
+            key={`${face}-${row}-${col}`}
+            data-face={face}
+            data-row={row}
+            data-col={col}
+            style={{ backgroundColor: STICKER_COLORS[sticker] ?? '#111827' }}
+          />
         )),
       )}
     </div>
   )
-}
-
-function getSwipeHighlightStyle(activeSwipe: ActiveSwipeFeedback): CSSProperties {
-  const cellSize = 100 / 3
-  if (activeSwipe.axis === 'horizontal') {
-    return {
-      top: `${activeSwipe.region.row * cellSize}%`,
-      left: '0%',
-      width: '100%',
-      height: `${cellSize}%`,
-    }
-  }
-
-  return {
-    top: '0%',
-    left: `${activeSwipe.region.col * cellSize}%`,
-    width: `${cellSize}%`,
-    height: '100%',
-  }
 }
 
 const DIRECTION_GLYPHS = {
@@ -62,11 +89,56 @@ const DIRECTION_GLYPHS = {
   down: '↓',
 } as const
 
-function getSwipeDirection(delta: number, axis: ActiveSwipeFeedback['axis']): keyof typeof DIRECTION_GLYPHS {
+function getSwipeDirection(
+  delta: number,
+  axis: Exclude<ActiveSwipeFeedback['axis'], null>,
+): keyof typeof DIRECTION_GLYPHS {
   if (axis === 'horizontal') {
     return delta >= 0 ? 'right' : 'left'
   }
   return delta >= 0 ? 'down' : 'up'
+}
+
+function getGestureReadout(activeSwipe: ActiveSwipeFeedback): string {
+  if (activeSwipe.phase === 'orbiting') {
+    return 'Orbiting view'
+  }
+
+  if (activeSwipe.phase === 'armed') {
+    return 'Slice armed'
+  }
+
+  if (activeSwipe.phase === 'cancelled') {
+    return 'Gesture cancelled'
+  }
+
+  if (!activeSwipe.label || !activeSwipe.axis) {
+    return 'Slice preview'
+  }
+
+  return `${activeSwipe.label} ${
+    DIRECTION_GLYPHS[getSwipeDirection(activeSwipe.delta, activeSwipe.axis)]
+  }`
+}
+
+function getGestureHint(activeSwipe: ActiveSwipeFeedback | null): string {
+  if (!activeSwipe) {
+    return 'Drag the cube to orbit. Press and hold a visible sticker until it arms, then drag the highlighted row or column to turn.'
+  }
+
+  if (activeSwipe.phase === 'armed') {
+    return 'Slice armed. Drag the highlighted row or column to turn, or release to cancel.'
+  }
+
+  if (activeSwipe.phase === 'dragging') {
+    return 'Keep dragging along the highlighted row or column until the turn commits.'
+  }
+
+  if (activeSwipe.phase === 'cancelled') {
+    return 'Slice cancelled. Drag the cube to orbit, or press and hold a sticker to try again.'
+  }
+
+  return 'Orbiting view. Release to stop, or press and hold a sticker next time to arm a turn.'
 }
 
 export function CubeView({
@@ -81,46 +153,48 @@ export function CubeView({
     '--view-yaw': `${viewYaw}deg`,
     '--view-pitch': `${viewPitch}deg`,
   } as CSSProperties
+  const gestureReadout = activeSwipe ? getGestureReadout(activeSwipe) : null
+  const gestureHint = getGestureHint(activeSwipe)
+  const interactionClassName =
+    activeSwipe?.phase === 'orbiting'
+      ? 'cube-interaction is-orbiting'
+      : 'cube-interaction'
 
   return (
     <section className="cube-panel">
       <div className="cube-stage">
         <div
-          className="cube-interaction"
+          className={interactionClassName}
           role="img"
           aria-label="3D Rubik's Cube interaction area"
+          data-gesture-phase={activeSwipe?.phase ?? 'idle'}
           {...gestureSurfaceHandlers}
         >
           <div className="cube-3d" style={cubeStyle}>
             <div className="cube-face face-front">
-              <FaceStickers face="F" stickers={faces.F} />
+              <FaceStickers face="F" stickers={faces.F} activeSwipe={activeSwipe} />
             </div>
             <div className="cube-face face-right">
-              <FaceStickers face="R" stickers={faces.R} />
+              <FaceStickers face="R" stickers={faces.R} activeSwipe={activeSwipe} />
             </div>
             <div className="cube-face face-up">
-              <FaceStickers face="U" stickers={faces.U} />
+              <FaceStickers face="U" stickers={faces.U} activeSwipe={activeSwipe} />
             </div>
             <div className="cube-face face-back">
-              <FaceStickers face="B" stickers={faces.B} />
+              <FaceStickers face="B" stickers={faces.B} activeSwipe={activeSwipe} />
             </div>
             <div className="cube-face face-left">
-              <FaceStickers face="L" stickers={faces.L} />
+              <FaceStickers face="L" stickers={faces.L} activeSwipe={activeSwipe} />
             </div>
             <div className="cube-face face-down">
-              <FaceStickers face="D" stickers={faces.D} />
+              <FaceStickers face="D" stickers={faces.D} activeSwipe={activeSwipe} />
             </div>
           </div>
 
-          {activeSwipe ? (
-            <div className="swipe-overlay" aria-hidden="true">
-              <div
-                className={`swipe-highlight ${activeSwipe.axis}`}
-                style={getSwipeHighlightStyle(activeSwipe)}
-              />
-              <p className="swipe-readout">
-                {activeSwipe.label}{' '}
-                {DIRECTION_GLYPHS[getSwipeDirection(activeSwipe.delta, activeSwipe.axis)]}
+          {gestureReadout ? (
+            <div className={`swipe-overlay phase-${activeSwipe?.phase}`} aria-hidden="true">
+              <p className={`swipe-readout phase-${activeSwipe?.phase}`}>
+                {gestureReadout}
               </p>
             </div>
           ) : (
@@ -129,9 +203,9 @@ export function CubeView({
         </div>
       </div>
 
-      {activeSwipe ? (
+      {gestureReadout ? (
         <p className="status gesture">
-          <strong>Swipe preview:</strong> {activeSwipe.label}
+          <strong>Gesture:</strong> {gestureReadout}
         </p>
       ) : null}
 
@@ -140,7 +214,7 @@ export function CubeView({
       </p>
 
       <p className="gesture-hint">
-        Drag diagonally to rotate view. Swipe straight across rows/columns to make a move.
+        {gestureHint}
       </p>
     </section>
   )

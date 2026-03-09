@@ -16,8 +16,7 @@ import {
 
 const DEFAULT_VIEW_YAW = -22
 const DEFAULT_VIEW_PITCH = -24
-const SLICE_HOLD_DURATION_MS = 180
-const SLICE_PRESS_DRIFT_TOLERANCE_PX = 10
+const CANCEL_FEEDBACK_DURATION_MS = 220
 const VALID_FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
 export type SliceTarget = FaceGridTarget
@@ -64,10 +63,10 @@ type TrackingState =
   | SliceDraggingState
 
 export type ActiveSwipeFeedback = {
-  axis: SwipeAxis
-  region: GridRegion
+  phase: 'orbiting' | 'armed' | 'dragging' | 'cancelled'
+  axis: SwipeAxis | null
   delta: number
-  label: string
+  label: string | null
   target: SliceTarget | null
 }
 
@@ -172,6 +171,77 @@ function safeReleasePointerCapture(target: HTMLDivElement, pointerId: number): v
   }
 }
 
+function buildOrbitingFeedback(distance: number): ActiveSwipeFeedback {
+  return {
+    phase: 'orbiting',
+    axis: null,
+    delta: distance,
+    label: null,
+    target: null,
+  }
+}
+
+function buildArmedFeedback(target: SliceTarget | null): ActiveSwipeFeedback | null {
+  if (!target) {
+    return null
+  }
+
+  return {
+    phase: 'armed',
+    axis: null,
+    delta: 0,
+    label: null,
+    target,
+  }
+}
+
+function buildDraggingFeedback(
+  target: SliceTarget | null,
+  axis: SwipeAxis,
+  delta: number,
+  label: string,
+): ActiveSwipeFeedback | null {
+  if (!target) {
+    return null
+  }
+
+  return {
+    phase: 'dragging',
+    axis,
+    delta,
+    label,
+    target,
+  }
+}
+
+function buildCancelledFeedback(tracking: TrackingState | null): ActiveSwipeFeedback | null {
+  if (!tracking || !tracking.sliceTarget) {
+    return null
+  }
+
+  if (tracking.mode === 'sliceArmed') {
+    return {
+      phase: 'cancelled',
+      axis: null,
+      delta: 0,
+      label: null,
+      target: tracking.sliceTarget,
+    }
+  }
+
+  if (tracking.mode === 'sliceDragging') {
+    return {
+      phase: 'cancelled',
+      axis: tracking.axis,
+      delta: 0,
+      label: null,
+      target: tracking.sliceTarget,
+    }
+  }
+
+  return null
+}
+
 export function useCubeGestures({
   onMove,
   sensitivity,
@@ -186,6 +256,7 @@ export function useCubeGestures({
   const activePointerIdRef = useRef<number | null>(null)
   const trackingRef = useRef<TrackingState | null>(null)
   const sliceArmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     viewYawRef.current = viewYaw
@@ -206,15 +277,48 @@ export function useCubeGestures({
     sliceArmTimeoutRef.current = null
   }, [])
 
-  const releaseTracking = useCallback((target?: HTMLDivElement) => {
+  const clearCancelFeedbackTimeout = useCallback(() => {
+    if (cancelFeedbackTimeoutRef.current === null) {
+      return
+    }
+
+    clearTimeout(cancelFeedbackTimeoutRef.current)
+    cancelFeedbackTimeoutRef.current = null
+  }, [])
+
+  const setLiveFeedback = useCallback(
+    (feedback: ActiveSwipeFeedback | null) => {
+      clearCancelFeedbackTimeout()
+      setActiveSwipe(feedback)
+    },
+    [clearCancelFeedbackTimeout],
+  )
+
+  const releaseTracking = useCallback((target?: HTMLDivElement, nextFeedback?: ActiveSwipeFeedback | null) => {
     clearSliceArmTimeout()
     if (target && activePointerIdRef.current !== null) {
       safeReleasePointerCapture(target, activePointerIdRef.current)
     }
     activePointerIdRef.current = null
     trackingRef.current = null
-    setActiveSwipe(null)
-  }, [clearSliceArmTimeout])
+
+    if (nextFeedback?.phase === 'cancelled') {
+      clearCancelFeedbackTimeout()
+      setActiveSwipe(nextFeedback)
+      cancelFeedbackTimeoutRef.current = setTimeout(() => {
+        setActiveSwipe((current) => {
+          if (current?.phase !== 'cancelled') {
+            return current
+          }
+          return null
+        })
+        cancelFeedbackTimeoutRef.current = null
+      }, CANCEL_FEEDBACK_DURATION_MS)
+      return
+    }
+
+    setLiveFeedback(nextFeedback ?? null)
+  }, [clearCancelFeedbackTimeout, clearSliceArmTimeout, setLiveFeedback])
 
   const runHapticPulse = useCallback(() => {
     if (!hapticsEnabled) {
@@ -225,8 +329,8 @@ export function useCubeGestures({
       return
     }
 
-    navigator.vibrate(12)
-  }, [hapticsEnabled])
+    navigator.vibrate(profile.hapticPulseMs)
+  }, [hapticsEnabled, profile.hapticPulseMs])
 
   const armSliceMode = useCallback(() => {
     const tracking = trackingRef.current
@@ -236,7 +340,7 @@ export function useCubeGestures({
 
     const deltaX = tracking.currentX - tracking.startX
     const deltaY = tracking.currentY - tracking.startY
-    if (getPointerDistance(deltaX, deltaY) > SLICE_PRESS_DRIFT_TOLERANCE_PX) {
+    if (getPointerDistance(deltaX, deltaY) > profile.sliceArmDriftTolerancePx) {
       clearSliceArmTimeout()
       return
     }
@@ -246,8 +350,14 @@ export function useCubeGestures({
       ...tracking,
       mode: 'sliceArmed',
     }
+    setLiveFeedback(buildArmedFeedback(tracking.sliceTarget))
     runHapticPulse()
-  }, [clearSliceArmTimeout, runHapticPulse])
+  }, [
+    clearSliceArmTimeout,
+    profile.sliceArmDriftTolerancePx,
+    runHapticPulse,
+    setLiveFeedback,
+  ])
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
@@ -255,13 +365,15 @@ export function useCubeGestures({
     }
 
     if (activePointerIdRef.current !== null) {
-      releaseTracking(event.currentTarget)
+      releaseTracking(event.currentTarget, buildCancelledFeedback(trackingRef.current))
       return
     }
 
     if (event.pointerType === 'touch' && event.isPrimary === false) {
       return
     }
+
+    setLiveFeedback(null)
 
     const target = event.currentTarget
     const bounds = target.getBoundingClientRect()
@@ -300,11 +412,11 @@ export function useCubeGestures({
         }
 
     if (sliceTarget) {
-      sliceArmTimeoutRef.current = setTimeout(armSliceMode, SLICE_HOLD_DURATION_MS)
+      sliceArmTimeoutRef.current = setTimeout(armSliceMode, profile.sliceHoldDurationMs)
     }
 
     safeSetPointerCapture(target, pointerId)
-  }, [armSliceMode, releaseTracking])
+  }, [armSliceMode, profile.sliceHoldDurationMs, releaseTracking, setLiveFeedback])
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -325,7 +437,7 @@ export function useCubeGestures({
       const distance = getPointerDistance(deltaX, deltaY)
 
       if (tracking.mode === 'slicePress') {
-        if (distance > SLICE_PRESS_DRIFT_TOLERANCE_PX) {
+        if (distance > profile.sliceArmDriftTolerancePx) {
           clearSliceArmTimeout()
           tracking = {
             ...tracking,
@@ -333,13 +445,15 @@ export function useCubeGestures({
             sliceTarget: null,
           }
           trackingRef.current = tracking
-        } else if (event.timeStamp - tracking.pressedAt >= SLICE_HOLD_DURATION_MS) {
+          setLiveFeedback(buildOrbitingFeedback(distance))
+        } else if (event.timeStamp - tracking.pressedAt >= profile.sliceHoldDurationMs) {
           clearSliceArmTimeout()
           tracking = {
             ...tracking,
             mode: 'sliceArmed',
           }
           trackingRef.current = tracking
+          setLiveFeedback(buildArmedFeedback(tracking.sliceTarget))
           runHapticPulse()
         } else {
           return
@@ -368,14 +482,14 @@ export function useCubeGestures({
         viewPitchRef.current = pitch
         setViewYaw(yaw)
         setViewPitch(pitch)
-        setActiveSwipe(null)
+        setLiveFeedback(buildOrbitingFeedback(distance))
         return
       }
 
       if (tracking.mode === 'sliceArmed') {
         const axis = getDominantAxis(deltaX, deltaY)
         if (!axis) {
-          setActiveSwipe(null)
+          setLiveFeedback(buildArmedFeedback(tracking.sliceTarget))
           return
         }
 
@@ -384,7 +498,7 @@ export function useCubeGestures({
           ? mapFaceLocalDragToMove(tracking.sliceTarget, axis, axisDelta)
           : null
         if (!swipeMove) {
-          setActiveSwipe(null)
+          setLiveFeedback(buildArmedFeedback(tracking.sliceTarget))
           return
         }
 
@@ -395,13 +509,14 @@ export function useCubeGestures({
         }
         trackingRef.current = tracking
 
-        setActiveSwipe({
-          axis,
-          region: tracking.region,
-          delta: axisDelta,
-          label: swipeMove.label,
-          target: tracking.sliceTarget,
-        })
+        setLiveFeedback(
+          buildDraggingFeedback(
+            tracking.sliceTarget,
+            axis,
+            axisDelta,
+            swipeMove.label,
+          ),
+        )
         return
       }
 
@@ -414,23 +529,27 @@ export function useCubeGestures({
         ? mapFaceLocalDragToMove(tracking.sliceTarget, tracking.axis, axisDelta)
         : null
       if (!swipeMove) {
-        setActiveSwipe(null)
+        setLiveFeedback(buildArmedFeedback(tracking.sliceTarget))
         return
       }
 
-      setActiveSwipe({
-        axis: tracking.axis,
-        region: tracking.region,
-        delta: axisDelta,
-        label: swipeMove.label,
-        target: tracking.sliceTarget,
-      })
+      setLiveFeedback(
+        buildDraggingFeedback(
+          tracking.sliceTarget,
+          tracking.axis,
+          axisDelta,
+          swipeMove.label,
+        ),
+      )
     },
     [
       clearSliceArmTimeout,
       profile.rotateDegreesPerPixel,
+      profile.sliceArmDriftTolerancePx,
+      profile.sliceHoldDurationMs,
       profile.startThresholdPx,
       runHapticPulse,
+      setLiveFeedback,
     ],
   )
 
@@ -448,6 +567,8 @@ export function useCubeGestures({
       const deltaX = event.clientX - tracking.startX
       const deltaY = event.clientY - tracking.startY
 
+      let releaseFeedback: ActiveSwipeFeedback | null = null
+
       if (tracking.mode === 'sliceDragging') {
         const axisDelta = tracking.axis === 'horizontal' ? deltaX : deltaY
         const swipeMove = tracking.sliceTarget
@@ -455,24 +576,28 @@ export function useCubeGestures({
           : null
         if (swipeMove && Math.abs(axisDelta) >= profile.commitThresholdPx) {
           onMove(swipeMove.move, swipeMove.label)
+        } else {
+          releaseFeedback = buildCancelledFeedback(tracking)
         }
+      } else if (tracking.mode === 'sliceArmed') {
+        releaseFeedback = buildCancelledFeedback(tracking)
       }
 
-      releaseTracking(event.currentTarget)
+      releaseTracking(event.currentTarget, releaseFeedback)
     },
     [onMove, profile.commitThresholdPx, releaseTracking],
   )
 
   const onPointerCancel = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      releaseTracking(event.currentTarget)
+      releaseTracking(event.currentTarget, buildCancelledFeedback(trackingRef.current))
     },
     [releaseTracking],
   )
 
   const onLostPointerCapture = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      releaseTracking(event.currentTarget)
+      releaseTracking(event.currentTarget, buildCancelledFeedback(trackingRef.current))
     },
     [releaseTracking],
   )

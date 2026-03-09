@@ -101,26 +101,30 @@ function App() {
       </header>
 
       <main className="workspace">
-        <CubeView
-          faces={faces}
-          lastAction={lastAction}
-          viewYaw={viewYaw}
-          viewPitch={viewPitch}
-          activeSwipe={activeSwipe}
-          gestureSurfaceHandlers={gestureSurfaceHandlers}
-        />
-        <ControlsPanel
-          columnControls={COLUMN_CONTROLS}
-          onMove={runMove}
-          onReset={reset}
-          onScramble={scramble}
-          gestureSensitivity={gestureSensitivity}
-          onGestureSensitivityChange={setGestureSensitivity}
-          hapticsEnabled={hapticsEnabled}
-          onHapticsToggle={setHapticsEnabled}
-          orientationControls={ORIENTATION_CONTROLS}
-          rowControls={ROW_CONTROLS}
-        />
+        <section className="workspace-primary">
+          <CubeView
+            faces={faces}
+            lastAction={lastAction}
+            viewYaw={viewYaw}
+            viewPitch={viewPitch}
+            activeSwipe={activeSwipe}
+            gestureSurfaceHandlers={gestureSurfaceHandlers}
+          />
+        </section>
+        <aside className="workspace-controls">
+          <ControlsPanel
+            columnControls={COLUMN_CONTROLS}
+            onMove={runMove}
+            onReset={reset}
+            onScramble={scramble}
+            gestureSensitivity={gestureSensitivity}
+            onGestureSensitivityChange={setGestureSensitivity}
+            hapticsEnabled={hapticsEnabled}
+            onHapticsToggle={setHapticsEnabled}
+            orientationControls={ORIENTATION_CONTROLS}
+            rowControls={ROW_CONTROLS}
+          />
+        </aside>
       </main>
     </div>
   )
