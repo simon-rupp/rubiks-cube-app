@@ -77,15 +77,16 @@ Columns:
 - `Right column Up` / `O` => `R`
 - `Right column Down` / `L` => `R'`
 
-Swipe equivalence:
+Hold-to-slice equivalence:
 
-- Horizontal right swipe on a row must match that row's `Right` mapping.
-- Horizontal left swipe on a row must match that row's `Left` mapping.
-- Vertical up swipe on a column must match that column's `Up` mapping.
-- Vertical down swipe on a column must match that column's `Down` mapping.
+- A move may only commit after slice mode arms on a visible sticker.
+- Once slice mode is armed, a local horizontal drag on the touched face must match that row's `Left/Right` mapping.
+- Once slice mode is armed, a local vertical drag on the touched face must match that column's `Up/Down` mapping.
+- Gesture mapping is face-aware: it follows the touched visible face's local axes rather than a fixed front-screen grid.
+- `src/hooks/useCubeGestures.logic.ts` and its tests remain the canonical source for `face + local drag -> move` equivalence.
 
 ## Scope Notes
 
 - This spec defines left/right orientation and middle-column up/down semantics.
 - Up/down orientation semantics (`x` / `x'`) are unchanged.
-- Gesture-based free rotation behavior is unchanged.
+- Orbit behavior now uses drag-to-orbit by default plus hold-to-slice on visible stickers, but the underlying move semantics above remain unchanged.

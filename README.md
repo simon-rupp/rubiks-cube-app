@@ -6,9 +6,9 @@ A keyboard-first Rubik's Cube trainer with direct touch gestures:
 - Scramble / reset controls
 - Keyboard and button controls for rows, columns, and cube orientation
 - Touch gestures for mobile play:
-  - diagonal drag to rotate view
-  - row/column swipe to execute moves
-- Live swipe preview and optional haptic feedback
+  - orbit-by-default drag to inspect the cube from any angle
+  - press-and-hold visible sticker targeting for row/column turns
+- Live gesture feedback and optional haptic arm confirmation
 
 Built with React + TypeScript + Vite and `cubejs`.
 
@@ -51,27 +51,30 @@ nvm use
 
 ### Touch / Pointer
 
-- Drag diagonally on the cube area to rotate view (`viewYaw` / `viewPitch`).
-- Swipe horizontally on the cube area to move rows:
+- Drag on the cube area to orbit the view (`viewYaw` / `viewPitch`).
+- Press and hold a visible sticker until slice mode arms. If supported and enabled, the device pulses once when arming succeeds.
+- After slice mode arms, drag along the touched face's local horizontal axis to turn rows:
   - top => `U/U'`
   - middle => `E/E'`
   - bottom => `D/D'`
-- Swipe vertically on the cube area to move columns:
+- After slice mode arms, drag along the touched face's local vertical axis to turn columns:
   - left => `L/L'`
   - middle => `M/M'`
   - right => `R/R'`
-- Touch controls card includes:
-  - gesture sensitivity (`low`, `medium`, `high`)
-  - haptic feedback toggle (when browser/device supports vibration)
+- Release before the commit distance to cancel without mutating cube state.
+- On narrow screens, `Session` and `Quick Touch Guide` stay above a collapsed `Secondary Controls` section so the cube interaction surface stays primary.
+- Touch settings still expose:
+  - gesture sensitivity (`low`, `medium`, `high`) for orbit-start slop and turn commit distance
+  - haptic arm confirmation toggle (when browser/device supports vibration)
 
 ## Supported Interactions Matrix
 
 | Interaction | Desktop keyboard | Desktop mouse | Mobile touch |
 | --- | --- | --- | --- |
 | Scramble / reset | Yes | Yes | Yes |
-| Cube orientation | Yes (`Arrow`) | Yes (diagonal drag) | Yes (diagonal drag) |
-| Row moves | Yes (`Q/W`, `A/S`, `Z/X`) | Yes (horizontal swipe) | Yes (horizontal swipe) |
-| Column moves | Yes (`U/J`, `I/K`, `O/L`) | Yes (vertical swipe) | Yes (vertical swipe) |
+| Cube orientation | Yes (`Arrow`) | Yes (drag to orbit) | Yes (drag to orbit) |
+| Row moves | Yes (`Q/W`, `A/S`, `Z/X`) | Yes (hold visible sticker, then horizontal face-local drag) | Yes (hold visible sticker, then horizontal face-local drag) |
+| Column moves | Yes (`U/J`, `I/K`, `O/L`) | Yes (hold visible sticker, then vertical face-local drag) | Yes (hold visible sticker, then vertical face-local drag) |
 
 ## Validation Artifacts
 
@@ -84,7 +87,6 @@ nvm use
 ## Known Limitations
 
 - Gesture engine is single-pointer only (multi-touch is ignored in v1).
-- Gesture mode split is axis-dominance based:
-  - dominant horizontal/vertical => swipe move
-  - near-diagonal => view rotation
+- There is no dedicated recenter button; reframe the cube with free orbit drag or the existing arrow-key cube turns.
+- Gesture sensitivity only adjusts orbit-start slop and slice commit distance. Hold timing stays fixed at `180 ms`.
 - Haptic feedback depends on browser/device vibration support.
