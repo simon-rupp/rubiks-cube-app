@@ -175,6 +175,13 @@ describe('App smoke flows', () => {
     expect(getLastActionStatus()).toHaveTextContent('Reset to solved state')
   })
 
+  it('still supports scramble keyboard shortcut', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(getLastActionStatus()).toHaveTextContent('Scrambled')
+  })
+
   it('maps middle-column keyboard shortcuts to expected directions', () => {
     render(<App />)
 
@@ -194,6 +201,27 @@ describe('App smoke flows', () => {
 
     fireEvent.click(within(middleColumnRow).getByRole('button', { name: /down/i }))
     expect(getLastActionStatus()).toHaveTextContent('Middle column down (M)')
+  })
+
+  it('maps left-column keyboard shortcuts to expected directions', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'u' })
+    expect(getLastActionStatus()).toHaveTextContent("Left column up (L')")
+
+    fireEvent.keyDown(window, { key: 'j' })
+    expect(getLastActionStatus()).toHaveTextContent('Left column down (L)')
+  })
+
+  it('maps left-column buttons to expected directions', () => {
+    render(<App />)
+
+    const leftColumnRow = getLayerRow(/left column/i)
+    fireEvent.click(within(leftColumnRow).getByRole('button', { name: /up/i }))
+    expect(getLastActionStatus()).toHaveTextContent("Left column up (L')")
+
+    fireEvent.click(within(leftColumnRow).getByRole('button', { name: /down/i }))
+    expect(getLastActionStatus()).toHaveTextContent('Left column down (L)')
   })
 
   it('maps top-row keyboard shortcuts to expected directions', () => {
@@ -440,6 +468,47 @@ describe('App smoke flows', () => {
       })
 
       expect(getLastActionStatus()).toHaveTextContent("Top row right (U')")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('supports hold-to-column moves on the cube surface', () => {
+    vi.useFakeTimers()
+
+    try {
+      render(<App />)
+
+      const interaction = screen.getByRole('img', { name: /interaction area/i })
+      mockInteractionBounds(interaction)
+      const sticker = getFaceSticker(interaction, '.face-front', 3)
+
+      fireEvent.pointerDown(sticker, {
+        pointerId: 11,
+        clientX: 72,
+        clientY: 170,
+        button: 0,
+        isPrimary: true,
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+
+      fireEvent.pointerMove(interaction, {
+        pointerId: 11,
+        clientX: 76,
+        clientY: 122,
+        isPrimary: true,
+      })
+      fireEvent.pointerUp(interaction, {
+        pointerId: 11,
+        clientX: 76,
+        clientY: 122,
+        isPrimary: true,
+      })
+
+      expect(getLastActionStatus()).toHaveTextContent("Left column up (L')")
     } finally {
       vi.useRealTimers()
     }
