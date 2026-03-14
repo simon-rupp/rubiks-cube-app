@@ -82,6 +82,15 @@ function getLayerRow(label: RegExp): HTMLElement {
   return row
 }
 
+function getSecondaryControlsCard(): HTMLElement {
+  const heading = screen.getByRole('heading', { name: /secondary controls/i })
+  const card = heading.closest('.secondary-controls-card')
+  if (!(card instanceof HTMLElement)) {
+    throw new Error('Missing secondary controls card')
+  }
+  return card
+}
+
 function getFrontSticker(interaction: HTMLElement): HTMLElement {
   const sticker = interaction.querySelector('.face-front .sticker')
   if (!(sticker instanceof HTMLElement)) {
@@ -280,6 +289,43 @@ describe('App smoke flows', () => {
       expect(screen.getByRole('heading', { name: /move rows/i })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: /move columns/i })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: /touch settings/i })).toBeInTheDocument()
+    } finally {
+      matchMedia.restore()
+    }
+  })
+
+  it('keeps desktop fallback sections grouped inside the secondary controls card', () => {
+    const matchMedia = mockMatchMedia(false)
+
+    try {
+      render(<App />)
+
+      const secondaryCard = getSecondaryControlsCard()
+
+      expect(secondaryCard).toHaveAttribute('data-secondary-open', 'true')
+      expect(
+        within(secondaryCard).getByRole('button', { name: /hide secondary controls/i }),
+      ).toHaveAttribute('aria-expanded', 'true')
+      expect(
+        within(secondaryCard).queryByText(/when you need the fallback controls/i),
+      ).not.toBeInTheDocument()
+
+      expect(
+        within(secondaryCard).getByText(/keep fallback controls nearby/i),
+      ).toBeInTheDocument()
+      expect(
+        within(secondaryCard).getByRole('heading', { name: /turn cube/i }),
+      ).toBeInTheDocument()
+      expect(
+        within(secondaryCard).getByRole('heading', { name: /move rows/i }),
+      ).toBeInTheDocument()
+      expect(
+        within(secondaryCard).getByRole('heading', { name: /move columns/i }),
+      ).toBeInTheDocument()
+      expect(
+        within(secondaryCard).getByRole('heading', { name: /touch settings/i }),
+      ).toBeInTheDocument()
+      expect(within(secondaryCard).getAllByRole('heading', { level: 3 })).toHaveLength(4)
     } finally {
       matchMedia.restore()
     }
