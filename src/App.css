@@ -274,6 +274,7 @@
   display: grid;
   gap: 0.8rem;
   animation: rise-in 500ms ease-out;
+  min-width: 0;
 }
 
 .session-card,
@@ -298,6 +299,7 @@
   border-radius: 16px;
   padding: 0.85rem;
   box-shadow: 0 8px 18px rgb(15 23 42 / 6%);
+  min-width: 0;
 }
 
 .control-card h2 {
@@ -317,13 +319,19 @@
     linear-gradient(145deg, rgb(248 250 252 / 98%), rgb(241 245 249 / 94%)),
     #fff;
   border-color: #cbd5e1;
+  min-width: 0;
 }
 
 .secondary-controls-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   align-items: start;
+  min-width: 0;
+}
+
+.secondary-controls-header > div {
+  min-width: 0;
 }
 
 .secondary-controls-header p {
@@ -332,7 +340,8 @@
 
 .secondary-controls-toggle {
   min-height: 40px;
-  align-self: center;
+  width: 100%;
+  justify-self: stretch;
   padding: 0.55rem 0.85rem;
   border: 1px solid #7dd3fc;
   background: linear-gradient(145deg, #f0f9ff, #dbeafe);
@@ -349,8 +358,10 @@
 .secondary-controls-grid {
   margin-top: 0.8rem;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
 }
 
 .secondary-control-section {
@@ -360,12 +371,17 @@
   border-radius: 14px;
   border: 1px solid #dbeafe;
   background: rgb(255 255 255 / 88%);
+  min-width: 0;
 }
 
 .secondary-control-section h3 {
   margin: 0;
   font-size: 0.96rem;
   color: #0f172a;
+}
+
+.secondary-control-section > * {
+  min-width: 0;
 }
 
 .secondary-controls-preview {
@@ -399,9 +415,10 @@
 
 .layer-row {
   display: grid;
-  grid-template-columns: minmax(90px, 120px) 1fr 1fr;
+  grid-template-columns: minmax(0, 112px) repeat(2, minmax(0, 1fr));
   gap: 0.48rem;
   align-items: center;
+  min-width: 0;
 }
 
 .layer-row p {
@@ -409,6 +426,11 @@
   font-weight: 600;
   font-size: 0.85rem;
   color: #0f172a;
+  line-height: 1.35;
+}
+
+.layer-row > * {
+  min-width: 0;
 }
 
 .touch-option {
@@ -416,12 +438,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.6rem;
   color: #0f172a;
   font-size: 0.85rem;
+  min-width: 0;
 }
 
 .touch-option select {
+  width: min(100%, 180px);
+  max-width: 100%;
   min-width: 150px;
   border-radius: 8px;
   border: 1px solid #94a3b8;
@@ -433,6 +459,17 @@
 
 .touch-option.checkbox {
   justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.secondary-control-section button,
+.secondary-control-section .button-grid,
+.secondary-control-section .layer-grid {
+  min-width: 0;
+}
+
+.secondary-control-section button {
+  width: 100%;
 }
 
 .touch-option input[type='checkbox'] {
